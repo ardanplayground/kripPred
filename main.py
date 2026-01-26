@@ -1380,6 +1380,8 @@ else:
     """)
     
     # Global Crypto Stats
+    global_data = get_global_crypto_data()
+    
     if global_data:
         st.subheader("🌍 Global Crypto Market")
         
