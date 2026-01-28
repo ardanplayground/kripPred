@@ -153,12 +153,12 @@ def get_trending_coins():
         return []
 
 @st.cache_data(ttl=300)
-def get_coin_data(coin_id, days=30):
+def get_coin_data(coin_id, days=30, currency="usd"):
     """Ambil data historical coin"""
     try:
         url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
         params = {
-            "vs_currency": "usd",
+            "vs_currency": currency,
             "days": days,
             "interval": "daily" if days > 1 else "hourly"
         }
@@ -658,7 +658,7 @@ def generate_advanced_signals(df, indicators, coin_info):
                 scores['bearish'] += 2
     
     # Bollinger Bands
-    if indicators['bb_upper'][-1] and indicators['bb_lower'][-1]:
+            if indicators['bb_upper'][-1] and indicators['bb_lower'][-1]:
         bb_upper = indicators['bb_upper'][-1]
         bb_lower = indicators['bb_lower'][-1]
         
@@ -666,7 +666,7 @@ def generate_advanced_signals(df, indicators, coin_info):
             signals.append({
                 'type': 'bearish',
                 'indicator': 'Bollinger',
-                'message': f"Price at Upper Band (${bb_upper:.2f}) - Overbought",
+                'message': f"Price at Upper Band ({currency_symbol}{bb_upper:.2f}) - Overbought",
                 'strength': 'medium'
             })
             scores['bearish'] += 2
@@ -674,7 +674,7 @@ def generate_advanced_signals(df, indicators, coin_info):
             signals.append({
                 'type': 'bullish',
                 'indicator': 'Bollinger',
-                'message': f"Price at Lower Band (${bb_lower:.2f}) - Oversold",
+                'message': f"Price at Lower Band ({currency_symbol}{bb_lower:.2f}) - Oversold",
                 'strength': 'medium'
             })
             scores['bullish'] += 2
@@ -834,6 +834,19 @@ if search_query:
 
 # Settings
 st.sidebar.subheader("⚙️ Settings")
+
+# Currency Selection
+currency = st.sidebar.selectbox(
+    "💱 Currency:",
+    options=["usd", "idr"],
+    format_func=lambda x: "USD ($)" if x == "usd" else "IDR (Rp)",
+    index=0
+)
+
+# Currency symbol and format
+currency_symbol = "$" if currency == "usd" else "Rp"
+currency_rate = 1 if currency == "usd" else 15800  # Approximate USD to IDR rate
+
 timeframe = st.sidebar.selectbox(
     "Data Period:",
     options=[7, 14, 30, 60, 90, 180, 365],
@@ -858,7 +871,7 @@ if coin_id or selected_coin:
     
     # Fetch data
     with st.spinner("🤖 AI Processing... Analyzing patterns, calculating predictions..."):
-        df = get_coin_data(coin_id, timeframe)
+        df = get_coin_data(coin_id, timeframe, currency)
         coin_info = get_coin_info(coin_id)
         global_data = get_global_crypto_data()
     
@@ -867,20 +880,20 @@ if coin_id or selected_coin:
         st.subheader("💎 Market Overview")
         
         market_data = coin_info.get('market_data', {})
-        current_price = market_data.get('current_price', {}).get('usd', 0)
+        current_price = market_data.get('current_price', {}).get(currency, 0)
         price_change_24h = market_data.get('price_change_percentage_24h', 0)
         price_change_7d = market_data.get('price_change_percentage_7d', 0)
-        market_cap = market_data.get('market_cap', {}).get('usd', 0)
+        market_cap = market_data.get('market_cap', {}).get(currency, 0)
         market_cap_rank = coin_info.get('market_cap_rank', 'N/A')
-        volume_24h = market_data.get('total_volume', {}).get('usd', 0)
+        volume_24h = market_data.get('total_volume', {}).get(currency, 0)
         circulating_supply = market_data.get('circulating_supply', 0)
-        ath = market_data.get('ath', {}).get('usd', 0)
-        ath_change = market_data.get('ath_change_percentage', {}).get('usd', 0)
+        ath = market_data.get('ath', {}).get(currency, 0)
+        ath_change = market_data.get('ath_change_percentage', {}).get(currency, 0)
         
         col1, col2, col3, col4, col5, col6 = st.columns(6)
         
         with col1:
-            st.metric("💰 Price", f"${current_price:,.2f}")
+            st.metric("💰 Price", f"{currency_symbol}{current_price:,.2f}")
         
         with col2:
             st.metric("📈 24h", f"{price_change_24h:.2f}%", 
@@ -894,12 +907,20 @@ if coin_id or selected_coin:
             st.metric("🏆 Rank", f"#{market_cap_rank}")
         
         with col5:
-            st.metric("💎 Market Cap", 
-                     f"${market_cap/1e9:.2f}B" if market_cap > 1e9 else f"${market_cap/1e6:.2f}M")
+            if currency == "usd":
+                st.metric("💎 Market Cap", 
+                         f"${market_cap/1e9:.2f}B" if market_cap > 1e9 else f"${market_cap/1e6:.2f}M")
+            else:
+                st.metric("💎 Market Cap", 
+                         f"Rp{market_cap/1e12:.2f}T" if market_cap > 1e12 else f"Rp{market_cap/1e9:.2f}B")
         
         with col6:
-            st.metric("📦 Volume 24h", 
-                     f"${volume_24h/1e9:.2f}B" if volume_24h > 1e9 else f"${volume_24h/1e6:.2f}M")
+            if currency == "usd":
+                st.metric("📦 Volume 24h", 
+                         f"${volume_24h/1e9:.2f}B" if volume_24h > 1e9 else f"${volume_24h/1e6:.2f}M")
+            else:
+                st.metric("📦 Volume 24h", 
+                         f"Rp{volume_24h/1e12:.2f}T" if volume_24h > 1e12 else f"Rp{volume_24h/1e9:.2f}B")
         
         # Calculate indicators
         indicators = calculate_advanced_indicators(df)
@@ -926,7 +947,7 @@ if coin_id or selected_coin:
                 change_pct = ((last_forecast['price'] - current_price) / current_price) * 100
                 st.metric(
                     f"🎯 Day {forecast_days} Prediction",
-                    f"${last_forecast['price']:,.2f}",
+                    f"{currency_symbol}{last_forecast['price']:,.2f}",
                     f"{change_pct:+.2f}%"
                 )
             
@@ -937,7 +958,7 @@ if coin_id or selected_coin:
             
             with col3:
                 price_range = last_forecast['upper'] - last_forecast['lower']
-                st.metric("📏 Price Range", f"${price_range:,.2f}")
+                st.metric("📏 Price Range", f"{currency_symbol}{price_range:,.2f}")
             
             with col4:
                 direction = "🟢 BULLISH" if change_pct > 0 else "🔴 BEARISH"
@@ -962,7 +983,7 @@ if coin_id or selected_coin:
                     y=df['price'],
                     name='Historical',
                     line=dict(color='#667eea', width=2),
-                    hovertemplate='<b>Historical</b><br>Date: %{x}<br>Price: $%{y:,.2f}<extra></extra>'
+                    hovertemplate=f'<b>Historical</b><br>Date: %{{x}}<br>Price: {currency_symbol}%{{y:,.2f}}<extra></extra>'
                 ),
                 row=1, col=1
             )
@@ -995,7 +1016,7 @@ if coin_id or selected_coin:
                     y=forecast_prices,
                     name='AI Forecast',
                     line=dict(color='orange', width=3, dash='dash'),
-                    hovertemplate='<b>Forecast</b><br>Date: %{x}<br>Price: $%{y:,.2f}<extra></extra>'
+                    hovertemplate=f'<b>Forecast</b><br>Date: %{{x}}<br>Price: {currency_symbol}%{{y:,.2f}}<extra></extra>'
                 ),
                 row=1, col=1
             )
@@ -1020,7 +1041,7 @@ if coin_id or selected_coin:
                 showlegend=True
             )
             
-            forecast_fig.update_yaxes(title_text="Price (USD)", row=1, col=1)
+            forecast_fig.update_yaxes(title_text=f"Price ({currency.upper()})", row=1, col=1)
             forecast_fig.update_yaxes(title_text="Confidence %", row=2, col=1)
             
             st.plotly_chart(forecast_fig, use_container_width=True)
@@ -1034,9 +1055,9 @@ if coin_id or selected_coin:
                 forecast_table.append({
                     'Day': i + 1,
                     'Date': date.strftime('%Y-%m-%d'),
-                    'Predicted Price': f'${f["price"]:,.2f}',
-                    'Lower Bound': f'${f["lower"]:,.2f}',
-                    'Upper Bound': f'${f["upper"]:,.2f}',
+                    'Predicted Price': f'{currency_symbol}{f["price"]:,.2f}',
+                    'Lower Bound': f'{currency_symbol}{f["lower"]:,.2f}',
+                    'Upper Bound': f'{currency_symbol}{f["upper"]:,.2f}',
                     'Change %': f'{change:+.2f}%',
                     'Confidence': f'{f["confidence"]*100:.1f}%'
                 })
@@ -1277,7 +1298,7 @@ if coin_id or selected_coin:
                 template='plotly_white'
             )
             
-            fig.update_yaxes(title_text="Price (USD)", row=1, col=1)
+            fig.update_yaxes(title_text=f"Price ({currency.upper()})", row=1, col=1)
             fig.update_yaxes(title_text="MACD", row=2, col=1)
             fig.update_yaxes(title_text="RSI/Stoch", row=3, col=1)
             fig.update_yaxes(title_text="Volume", row=4, col=1)
@@ -1292,7 +1313,7 @@ if coin_id or selected_coin:
                 st.write(f"**Name:** {coin_info.get('name', 'N/A')}")
                 st.write(f"**Symbol:** {coin_info.get('symbol', 'N/A').upper()}")
                 st.write(f"**Market Cap Rank:** #{market_cap_rank}")
-                st.write(f"**All-Time High:** ${ath:,.2f} ({ath_change:+.2f}%)")
+                st.write(f"**All-Time High:** {currency_symbol}{ath:,.2f} ({ath_change:+.2f}%)")
                 
                 if circulating_supply:
                     st.write(f"**Circulating Supply:** {circulating_supply:,.0f}")
