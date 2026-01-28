@@ -561,7 +561,7 @@ def calculate_advanced_indicators(df):
     
     return indicators
 
-def generate_advanced_signals(df, indicators, coin_info):
+def generate_advanced_signals(df, indicators, coin_info, currency_symbol):
     """Generate advanced trading signals with scoring"""
     signals = []
     scores = {'bullish': 0, 'bearish': 0, 'neutral': 0}
@@ -658,7 +658,7 @@ def generate_advanced_signals(df, indicators, coin_info):
                 scores['bearish'] += 2
     
     # Bollinger Bands
-            if indicators['bb_upper'][-1] and indicators['bb_lower'][-1]:
+    if indicators['bb_upper'][-1] and indicators['bb_lower'][-1]:
         bb_upper = indicators['bb_upper'][-1]
         bb_lower = indicators['bb_lower'][-1]
         
@@ -848,13 +848,13 @@ currency_symbol = "$" if currency == "usd" else "Rp"
 currency_rate = 1 if currency == "usd" else 15800  # Approximate USD to IDR rate
 
 timeframe = st.sidebar.selectbox(
-    "Data Period:",
+    "📅 Data Period:",
     options=[7, 14, 30, 60, 90, 180, 365],
     format_func=lambda x: f"{x} hari",
     index=2
 )
 
-forecast_days = st.sidebar.slider("Forecast Days:", 1, 30, 7)
+forecast_days = st.sidebar.slider("🔮 Forecast Days:", 1, 30, 7)
 
 show_advanced = st.sidebar.checkbox("🧠 Show Advanced Indicators", value=True)
 
@@ -865,7 +865,7 @@ if coin_id or selected_coin:
     
     st.markdown(f"""
     <div class="success-box">
-        <strong>✅ Analyzing:</strong> {selected_coin.get('name', coin_id)} ({selected_coin.get('symbol', '').upper()})
+        <strong>✅ Analyzing:</strong> {selected_coin.get('name', coin_id) if selected_coin else coin_id} ({selected_coin.get('symbol', '').upper() if selected_coin else ''})
     </div>
     """, unsafe_allow_html=True)
     
