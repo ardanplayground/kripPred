@@ -926,7 +926,7 @@ if coin_id or selected_coin:
         indicators = calculate_advanced_indicators(df)
         
         # Generate signals
-        signals, sentiment = generate_advanced_signals(df, indicators, coin_info)
+        signals, sentiment = generate_advanced_signals(df, indicators, coin_info, currency_symbol)
         
         # AI FORECAST SECTION
         st.markdown("---")
